@@ -17,10 +17,11 @@ import numpy as np
 
 import tensorflow as tf
 import cv2
+from sklearn.utils import shuffle
 
 # Parameters
 learning_rate = 0.001
-training_iters = 250000
+training_iters = 400000
 batch_size = 128
 display_step = 100
 
@@ -75,13 +76,16 @@ shifted_X_train = np.array([do_pixel_shift(x,
                                            training_image_rowsize) 
                             for x in X_train])
 
+X_train = np.concatenate((X_train,np.concatenate((rotated_X_train, shifted_X_train), axis=0)), axis=0)
+y_train = np.concatenate((y_train, np.concatenate((y_train, y_train), axis=0)), axis=0)
+X_train = X_train.reshape((-1, n_input)).astype('float32')
+X_train, y_train = shuffle(X_train, y_train, random_state=0)
+
 # Convert class values into a one hot encoded vector
 n_values = (np.max(y_train) + 1)
 y_train_ohe = np.eye(n_values)[y_train.astype('int')]
 n_values = (np.max(y_test) + 1)
 y_test_ohe = np.eye(n_values)[y_test.astype('int')]
-
-X_train = X_train.reshape((39209, n_input)).astype('float32')
 
 graph = tf.Graph()
 
