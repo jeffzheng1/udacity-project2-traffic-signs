@@ -83,79 +83,81 @@ y_test_ohe = np.eye(n_values)[y_test.astype('int')]
 
 X_train = X_train.reshape((39209, n_input)).astype('float32')
 
-x = tf.placeholder(tf.float32, [None, n_input])
-y = tf.placeholder(tf.int8, [None, n_classes])
-keep_prob = tf.placeholder(tf.float32)
+graph = tf.Graph()
 
-def conv2d(x, W, b, strides=1):
-    x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
-    x = tf.nn.bias_add(x, b)
-    return tf.nn.relu(x)
+with graph.as_default():
+    x = tf.placeholder(tf.float32, [None, n_input])
+    y = tf.placeholder(tf.int8, [None, n_classes])
+    keep_prob = tf.placeholder(tf.float32)
 
-def maxpool2d(x, k=2):
-    # MaxPool2D wrapper
-    return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
-                          padding='SAME')
+    def conv2d(x, W, b, strides=1):
+        x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
+        x = tf.nn.bias_add(x, b)
+        return tf.nn.relu(x)
 
-# Create model
-def conv_net(x, weights, biases, dropout):
-    # Reshape input picture
-    x = tf.reshape(x, shape=[-1, 32, 32, num_channels])
+    def maxpool2d(x, k=2):
+        # MaxPool2D wrapper
+        return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
+                              padding='SAME')
 
-    # Convolution Layer
-    conv1 = conv2d(x, weights['wc1'], biases['bc1'])
-    # Max Pooling (down-sampling)
-    conv1 = maxpool2d(conv1, k=2)
-    conv1 = tf.nn.local_response_normalization(conv1)
-    
-    # Convolution Layer
-    conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
-    # Max Pooling (down-sampling)
-    conv2 = maxpool2d(conv2, k=2)
-    conv2 = tf.nn.local_response_normalization(conv2)
-    
-    # Fully connected layer
-    # Reshape conv2 output to fit fully connected layer input
-    fc1 = tf.reshape(conv2, [-1, weights['wd1'].get_shape().as_list()[0]])
-    fc1 = tf.add(tf.matmul(fc1, weights['wd1']), biases['bd1'])
-    fc1 = tf.nn.relu(fc1)
-    # Apply Dropout
-    fc1 = tf.nn.dropout(fc1, dropout)
+    # Create model
+    def conv_net(x, weights, biases, dropout):
+        # Reshape input picture
+        x = tf.reshape(x, shape=[-1, 32, 32, num_channels])
 
-    # Output, class prediction
-    out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
-    return out
+        # Convolution Layer
+        conv1 = conv2d(x, weights['wc1'], biases['bc1'])
+        # Max Pooling (down-sampling)
+        conv1 = maxpool2d(conv1, k=2)
+        conv1 = tf.nn.local_response_normalization(conv1)
+        
+        # Convolution Layer
+        conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
+        # Max Pooling (down-sampling)
+        conv2 = maxpool2d(conv2, k=2)
+        conv2 = tf.nn.local_response_normalization(conv2)
+        
+        # Fully connected layer
+        # Reshape conv2 output to fit fully connected layer input
+        fc1 = tf.reshape(conv2, [-1, weights['wd1'].get_shape().as_list()[0]])
+        fc1 = tf.add(tf.matmul(fc1, weights['wd1']), biases['bd1'])
+        fc1 = tf.nn.relu(fc1)
+        # Apply Dropout
+        fc1 = tf.nn.dropout(fc1, dropout)
 
-weights = {
-    'wc1': tf.Variable(tf.random_normal([5, 5, num_channels, 128], stddev=0.1)),
-    'wc2': tf.Variable(tf.random_normal([5, 5, 128, 128], stddev=0.1)),
-    'wd1': tf.Variable(tf.random_normal([8*8*128, 256], stddev=0.1)),
-    'out': tf.Variable(tf.random_normal([256, n_classes], stddev=0.1))
-}
+        # Output, class prediction
+        out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
+        return out
 
-biases = {
-    'bc1': tf.Variable(tf.random_normal([128], stddev=0.1)),
-    'bc2': tf.Variable(tf.random_normal([128], stddev=0.1)),
-    'bd1': tf.Variable(tf.random_normal([256], stddev=0.1)),
-    'out': tf.Variable(tf.random_normal([n_classes], stddev=0.1))
-}
+    weights = {
+        'wc1': tf.Variable(tf.random_normal([5, 5, num_channels, 128], stddev=0.1)),
+        'wc2': tf.Variable(tf.random_normal([5, 5, 128, 128], stddev=0.1)),
+        'wd1': tf.Variable(tf.random_normal([8*8*128, 256], stddev=0.1)),
+        'out': tf.Variable(tf.random_normal([256, n_classes], stddev=0.1))
+    }
+
+    biases = {
+        'bc1': tf.Variable(tf.random_normal([128], stddev=0.1)),
+        'bc2': tf.Variable(tf.random_normal([128], stddev=0.1)),
+        'bd1': tf.Variable(tf.random_normal([256], stddev=0.1)),
+        'out': tf.Variable(tf.random_normal([n_classes], stddev=0.1))
+    }
 
 
-# Construct model
-pred = conv_net(x, weights, biases, keep_prob)
+    # Construct model
+    pred = conv_net(x, weights, biases, keep_prob)
 
-# Define loss and optimizer
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, y))
-optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+    # Define loss and optimizer
+    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, y))
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
-# Evaluate model
-correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+    # Evaluate model
+    correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
+    accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
 # Launch the graph
-init = tf.initialize_all_variables()
-with tf.Session() as sess:
-    sess.run(init)
+with tf.Session(graph=graph) as sess:
+    tf.initialize_all_variables().run()
     step = 1
     while step * batch_size < training_iters:
         batch_x, batch_y = generate_random_batch(X_train, y_train_ohe, batch_size)
