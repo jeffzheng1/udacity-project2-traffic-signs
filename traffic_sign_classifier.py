@@ -40,7 +40,7 @@ import tensorflow as tf
 
 # Parameters
 learning_rate = 0.001
-training_iters = 500000
+training_iters = 250000
 batch_size = 128
 display_step = 100
 
